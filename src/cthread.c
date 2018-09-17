@@ -5,7 +5,9 @@
 #include "../include/cdata.h"
 
 
-PFILA2 readyQueue;
+PFILA2 readyQueue0;
+PFILA2 readyQueue1;
+PFILA2 readyQueue2;
 PFILA2 blockedQueue;
 PFILA2 finishedQueue;
 PFILA2 readySuspendedQueue;
@@ -130,9 +132,9 @@ TCB_t* findThread(int tid)
 {
     TCB_t* tcb;
 
-    if(searchThread(tid, readyQueue))
+    if(searchThread(tid, readyQueue0))
     {
-        tcb = returnTCB(tid, readyQueue);
+        tcb = returnTCB(tid, readyQueue0);
     }
 
     else if(searchThread(tid, blockedQueue))
@@ -188,7 +190,7 @@ int dispatcher()
                 newThread = (TCB_t *) newReadyNode->node;
                 newThread->state = PROCST_APTO;
                 DeleteAtIteratorFila2(blockedQueue);
-                AppendFila2(readyQueue, newReadyNode);
+                AppendFila2(readyQueue0, newReadyNode);
 
             }
         }
@@ -216,12 +218,12 @@ int dispatcher()
 
     }
 
-    if (FirstFila2(readyQueue) != 0)
+    if (FirstFila2(readyQueue0) != 0)
     {
         printf("opa\n");
         exit (RETURN_ERROR);
     }
-    nextNode = (PNODE2)GetAtIteratorFila2(readyQueue);
+    nextNode = (PNODE2)GetAtIteratorFila2(readyQueue0);
     hasThreadEnded = 1;
 
     if (nextNode != NULL)
@@ -229,7 +231,7 @@ int dispatcher()
         thread = (TCB_t*) nextNode->node;
         executingThread = thread;
         thread->state = PROCST_EXEC;
-        DeleteAtIteratorFila2(readyQueue);
+        DeleteAtIteratorFila2(readyQueue0);
         setcontext(&(thread->context));
         return RETURN_OK;
     }
@@ -297,13 +299,18 @@ int init()
 
     int returnCode;
 
-    readyQueue = malloc(sizeof(FILA2));
+    //malloc das Filas
+    readyQueue0 = malloc(sizeof(FILA2)); //ReadyQueue0 = prioridade 0
+    readyQueue1 = malloc(sizeof(FILA2)); //ReadyQueue1 = prioridade 1
+    readyQueue2 = malloc(sizeof(FILA2)); //ReadyQueue2 = prioridade 2
     blockedQueue = malloc(sizeof(FILA2));
     finishedQueue = malloc(sizeof(FILA2));
-    readySuspendedQueue = malloc(sizeof(FILA2));
-    blockedSuspendedQueue = malloc(sizeof(FILA2));
+    readySuspendedQueue = malloc(sizeof(FILA2)); //NAO VAMOS PRECISAR DESSAS 2
+    blockedSuspendedQueue = malloc(sizeof(FILA2)); //^^
 
-    CreateFila2(readyQueue);
+    CreateFila2(readyQueue0);
+    CreateFila2(readyQueue1);
+    CreateFila2(readyQueue2);
     CreateFila2(blockedQueue);
     CreateFila2(finishedQueue);
     CreateFila2(readySuspendedQueue);
@@ -330,7 +337,7 @@ int init()
 
 int cidentify (char *name, int size)
 {
-    char id_grupo[72] = "Amanda Goveia 242259\nIsadora Oliveira 264109\nVictoria Elizabetha 261575\n";
+    char id_grupo[72] = "THE EMPIRE";
     int i = 0;
 
     if (size >= 72)
@@ -366,15 +373,34 @@ int ccreate (void *(*start)(void *), void *arg, int prio)
 
     makecontext(&newThread->context, (void (*)(void)) start, 1, arg);
     newThread->state = PROCST_APTO;
-
+    newThread->prio = prio;
     PNODE2 newThreadNode = malloc(sizeof(PNODE2));
     newThreadNode->node = newThread;
 
-    if(AppendFila2(readyQueue, newThreadNode) != 0)
+    if (prio == 0)
     {
-        printf("Erro ao criar thread %d\n", newThread->tid);
-        return RETURN_ERROR;
+
+        if(AppendFila2(readyQueue0, newThreadNode) != 0)
+        {
+            printf("Erro ao criar thread %d\n", newThread->tid);
+            return RETURN_ERROR;
+        }
+    }else if (prio == 1)
+    {
+        if(AppendFila2(readyQueue1, newThreadNode) != 0)
+        {
+            printf("Erro ao criar thread %d\n", newThread->tid);
+            return RETURN_ERROR;
+        }
+    }else if (prio == 2)
+    {
+        if(AppendFila2(readyQueue2, newThreadNode) != 0)
+        {
+            printf("Erro ao criar thread %d\n", newThread->tid);
+            return RETURN_ERROR;
+        }
     }
+    else printf("PRIORIDADE INVALIDA NO THREAD: %d\n", newThread->tid);
 
     return newThread->tid;
 
@@ -433,7 +459,7 @@ int cyield(void)
     PNODE2 exe = malloc(sizeof(PNODE2));
     exe->node = executingThread;
     executingThread->state = PROCST_APTO;
-    if (AppendFila2(readyQueue, exe) != 0)
+    if (AppendFila2(readyQueue0, exe) != 0)
         return RETURN_ERROR;
     hasThreadEnded = 0;
 
@@ -454,9 +480,9 @@ int csuspend(int tid)
         init();
     }
 
-    if(searchThread(tid, readyQueue))
+    if(searchThread(tid, readyQueue0))
     {
-        if(changeQueue(tid, readyQueue, readySuspendedQueue, PROCST_APTO_SUS) != 0)
+        if(changeQueue(tid, readyQueue0, readySuspendedQueue, PROCST_APTO_SUS) != 0)
         {
             printf("csuspend: Erro ao passar para apto suspenso\n");
             return RETURN_ERROR;
@@ -496,7 +522,7 @@ int cresume(int tid)
 
     if(searchThread(tid, readySuspendedQueue))
     {
-        if(changeQueue(tid, readySuspendedQueue, readyQueue, PROCST_APTO) != 0)
+        if(changeQueue(tid, readySuspendedQueue, readyQueue0, PROCST_APTO) != 0)
         {
             // printf("cresume: Erro ao passar para apto\n");
             return RETURN_ERROR;
@@ -614,7 +640,7 @@ int csignal(csem_t *sem)
 
             if(searchThread(thread->tid, blockedQueue)){
 
-                changeQueue(thread->tid, blockedQueue, readyQueue, PROCST_APTO);
+                changeQueue(thread->tid, blockedQueue, readyQueue0, PROCST_APTO);
                 DeleteAtIteratorFila2(sem->fila);
             }
 
@@ -678,8 +704,12 @@ void printReadySus()
 
 void printReady()
 {
-    printf("Fila de aptos: ");
-    printFila(readyQueue);
+    printf("Fila de aptos com prioridade 0: ");
+    printFila(readyQueue0);
+    printf("Fila de aptos com prioridade 1: ");
+    printFila(readyQueue1);
+    printf("Fila de aptos com prioridade 2: ");
+    printFila(readyQueue2);
 }
 
 void printBlocked()

@@ -6,7 +6,7 @@
 #include "../include/cthread.h"
 #include "../include/support.h"
 
-int thread1, thread2, thread3;
+int thread1, thread2, thread3, thread4, thread5;
 
 void* func0() {
 	printf("\nEu sou a thread1\n");
@@ -57,24 +57,25 @@ int main()
 
     printf("#main: criando 3 threads\n");
     thread1 = ccreate (func0, (void *) NULL, 0);
-    thread2 = ccreate (func1, (void *) NULL, 0);
-    thread3 = ccreate (func2, (void *) NULL, 0);
-
+    thread2 = ccreate (func1, (void *) NULL, 1);
+    thread3 = ccreate (func2, (void *) NULL, 2);
+    thread4 = ccreate (func2, (void *) NULL, 0);
+    thread5 = ccreate (func2, (void *) NULL, 2);
     printReady();
 
-    printf("#main chamando cjoin thread1\n");
-    cjoin(thread1);
-    
-    printf("\nDe volta a main\n");
-    printReadySus();
-    printf("#main resumindo thread2\n");
-    cresume(thread2);
-    printReady();
+    //printf("#main chamando cjoin thread1\n");
+    //cjoin(thread1);
 
-    printf("#main cjoin thread2\n");
-    cjoin(thread2);
+    //printf("\nDe volta a main\n");
+    //printReadySus();
+    //printf("#main resumindo thread2\n");
+    //cresume(thread2);
+    //printReady();
 
-    printf("\nTerminando #main\n");
+   // printf("#main cjoin thread2\n");
+    //cjoin(thread2);
+
+    //printf("\nTerminando #main\n");
 
     return 0;
 }
