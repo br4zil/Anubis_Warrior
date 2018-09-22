@@ -136,7 +136,14 @@ TCB_t* findThread(int tid)
     {
         tcb = returnTCB(tid, readyQueue0);
     }
-
+    else if(searchThread(tid, readyQueue1))
+    {
+        tcb = returnTCB(tid, readyQueue1);
+    }
+    else if(searchThread(tid, readyQueue2))
+    {
+        tcb = returnTCB(tid, readyQueue2);
+    }
     else if(searchThread(tid, blockedQueue))
     {
         tcb = returnTCB(tid, blockedQueue);
@@ -470,6 +477,25 @@ int cyield(void)
 
 } // end method
 
+int csetprio(int tid, int prio)
+{
+    if(!has_init)
+        {
+            init();
+        }
+    TCB_t * thread_tobe_changed;
+    thread_tobe_changed = findThread(tid);
+
+    if (thread_tobe_changed != NULL && thread_tobe_changed->state == PROCST_EXEC)
+    {
+        thread_tobe_changed->prio = prio;
+        return RETURN_OK;
+    }
+    else
+    {
+        return RETURN_ERROR;
+    }
+}
 // -----------------------------------------------------------------------------
 
 int csuspend(int tid)
