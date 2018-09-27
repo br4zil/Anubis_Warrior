@@ -3,8 +3,6 @@
 
 #include "../include/cthread.h"
 #include "../include/cdata.h"
-#define TRUE 1
-#define FALSE 0
 
 
 PFILA2 readyQueue0;
@@ -12,44 +10,15 @@ PFILA2 readyQueue1;
 PFILA2 readyQueue2;
 PFILA2 blockedQueue;
 PFILA2 finishedQueue;
-/*PFILA2 readySuspendedQueue;
-PFILA2 blockedSuspendedQueue;*/
+PFILA2 readySuspendedQueue;
+PFILA2 blockedSuspendedQueue;
 
 TCB_t * executingThread;
 
 ucontext_t DispatcherContext;
 int tCounter = 0;
 int has_init = 0;
-//int hasThreadEnded = 0;
-int wascjoin = FALSE;
-int wascyield = FALSE;
-int wascwait = FALSE;
-
-int shouldPreempt(int priority)
-{
-    int prio = priority;
-    switch(prio)
-    {
-        case 0:
-            break;
-        case 1:
-        {
-            if (FirstFila2(readyQueue0) == 0)
-                return TRUE;
-            break;
-        }
-        case 2:
-        {
-            if (FirstFila2(readyQueue0) == 0)
-                return TRUE;
-            else if (FirstFila2(readyQueue1) == 0)
-                return TRUE;
-            break;
-        }
-        default: printf("Thread foi criada ou configurada com prioridade inválida.");
-    }
-    return FALSE;
-}
+int hasThreadEnded = 0;
 
 
 PNODE2 returnNode(int tid, PFILA2 queue)
@@ -180,7 +149,7 @@ TCB_t* findThread(int tid)
         tcb = returnTCB(tid, blockedQueue);
     }
 
-    /*else if(searchThread(tid, readySuspendedQueue))
+    else if(searchThread(tid, readySuspendedQueue))
     {
         tcb = returnTCB(tid, readySuspendedQueue);
     }
@@ -188,7 +157,7 @@ TCB_t* findThread(int tid)
     else if(searchThread(tid, blockedSuspendedQueue))
     {
         tcb = returnTCB(tid, blockedSuspendedQueue);
-    }*/
+    }
 
     else
     {
@@ -204,10 +173,9 @@ int dispatcher()
 {
     //printf("\nMae to na globo");
     PNODE2 nextNode;
-    PFILA2 queueToRun;
     TCB_t * thread;
 
-    if ((wascjoin == FALSE) && (wascyield == FALSE) && (wascwait == FALSE)) // tã dã!
+    if (hasThreadEnded)
     {
 
         PNODE2 newReadyNode = NULL;
@@ -229,40 +197,12 @@ int dispatcher()
                 newThread = (TCB_t *) newReadyNode->node;
                 newThread->state = PROCST_APTO;
                 DeleteAtIteratorFila2(blockedQueue);
-                //AppendFila2(readyQueue0, newReadyNode);
-                switch (newThread->prio)
-                {
-                    case 0:
-                    {
-                        AppendFila2(readyQueue0, newReadyNode);
-                        break;
-                    }
-                    case 1:
-                    {
-                        AppendFila2(readyQueue1, newReadyNode);
-                        break;
-                    }
-                    case 2:
-                    {
-                        AppendFila2(readyQueue2, newReadyNode);
-                        break;
-                    }
-                    default:
-                    {
-                        printf("PRIORIDADE INVALIDA NO THREAD: %d\n", newThread->tid);
-                    }
-
-
-                }
+                AppendFila2(readyQueue0, newReadyNode);
 
             }
         }
 
-        wascjoin = FALSE;
-        wascyield = FALSE;
-        wascwait = FALSE;
-
-        /*else if(searchThread(tid, blockedSuspendedQueue))
+        else if(searchThread(tid, blockedSuspendedQueue))
         {
 
 
@@ -281,28 +221,17 @@ int dispatcher()
 
             }
 
-        }*/
+        }
 
     }
 
     if (FirstFila2(readyQueue0) != 0)
     {
-        printf("Ninguém na prio 0\n");
-        if (FirstFila2(readyQueue1) != 0)
-        {
-            printf("Ninguém na prio 1\n");
-            if (FirstFila2(readyQueue2) != 0)
-            {
-                printf("Ninguém na prio 2\n");
-                exit(RETURN_ERROR);
-            }
-            queueToRun = readyQueue2;
-        }
-        queueToRun = readyQueue1;
+        printf("opa\n");
+        exit (RETURN_ERROR);
     }
-    queueToRun = readyQueue0;
-    nextNode = (PNODE2)GetAtIteratorFila2(queueToRun);
-    //hasThreadEnded = 1;
+    nextNode = (PNODE2)GetAtIteratorFila2(readyQueue0);
+    hasThreadEnded = 1;
 
     if (nextNode != NULL)
     {
@@ -327,7 +256,7 @@ void createDispatcherContext()
     char stack_dispatcher[SIGSTKSZ];
     DispatcherContext.uc_stack.ss_sp = stack_dispatcher;
     DispatcherContext.uc_stack.ss_size = sizeof(stack_dispatcher);
-    makecontext( &DispatcherContext, (void (*)(void))dispatcher, 2);
+    makecontext( &DispatcherContext, (void (*)(void))dispatcher, 0);
 } // end method
 
 // -----------------------------------------------------------------------------
@@ -383,16 +312,16 @@ int init()
     readyQueue2 = malloc(sizeof(FILA2)); //ReadyQueue2 = prioridade 2
     blockedQueue = malloc(sizeof(FILA2));
     finishedQueue = malloc(sizeof(FILA2));
-    /*readySuspendedQueue = malloc(sizeof(FILA2)); //NAO VAMOS PRECISAR DESSAS 2
-    blockedSuspendedQueue = malloc(sizeof(FILA2)); //^^*/
+    readySuspendedQueue = malloc(sizeof(FILA2)); //NAO VAMOS PRECISAR DESSAS 2
+    blockedSuspendedQueue = malloc(sizeof(FILA2)); //^^
 
     CreateFila2(readyQueue0);
     CreateFila2(readyQueue1);
     CreateFila2(readyQueue2);
     CreateFila2(blockedQueue);
     CreateFila2(finishedQueue);
-    /*CreateFila2(readySuspendedQueue);
-    CreateFila2(blockedSuspendedQueue);*/
+    CreateFila2(readySuspendedQueue);
+    CreateFila2(blockedSuspendedQueue);
 
     executingThread = NULL;
 
@@ -455,46 +384,30 @@ int ccreate (void *(*start)(void *), void *arg, int prio)
     PNODE2 newThreadNode = malloc(sizeof(PNODE2));
     newThreadNode->node = newThread;
 
-    switch (prio)
+    if (prio == 0)
     {
-        case 0:
-        {
-            if(AppendFila2(readyQueue0, newThreadNode) != 0)
-            {
-                printf("Erro ao criar thread %d\n", newThread->tid);
-                return RETURN_ERROR;
-            }
-            break;
-        }
-        case 1:
-        {
-            if(AppendFila2(readyQueue1, newThreadNode) != 0)
-            {
-                printf("Erro ao criar thread %d\n", newThread->tid);
-                return RETURN_ERROR;
-            }
-            break;
-        }
-        case 2:
-        {
-            if(AppendFila2(readyQueue2, newThreadNode) != 0)
-            {
-                printf("Erro ao criar thread %d\n", newThread->tid);
-                return RETURN_ERROR;
-            }
-            break;
-        }
-        default:
-        {
-            printf("PRIORIDADE INVALIDA NO THREAD: %d\n", newThread->tid);
-        }
 
-    }
-
-    if (shouldPreempt(prio) == TRUE)
+        if(AppendFila2(readyQueue0, newThreadNode) != 0)
+        {
+            printf("Erro ao criar thread %d\n", newThread->tid);
+            return RETURN_ERROR;
+        }
+    }else if (prio == 1)
     {
-        cyield();
+        if(AppendFila2(readyQueue1, newThreadNode) != 0)
+        {
+            printf("Erro ao criar thread %d\n", newThread->tid);
+            return RETURN_ERROR;
+        }
+    }else if (prio == 2)
+    {
+        if(AppendFila2(readyQueue2, newThreadNode) != 0)
+        {
+            printf("Erro ao criar thread %d\n", newThread->tid);
+            return RETURN_ERROR;
+        }
     }
+    else printf("PRIORIDADE INVALIDA NO THREAD: %d\n", newThread->tid);
 
     return newThread->tid;
 
@@ -530,8 +443,8 @@ int cjoin(int tid)
         executingThread->state = PROCST_BLOQ;
         waitFor->waitedBy = waiting->tid;
         waiting->waitingFor = waitFor->tid;
-        //hasThreadEnded = 0;
-        wascjoin = TRUE;
+        hasThreadEnded = 0;
+
         swapcontext(&(executingThread->context), &(DispatcherContext));
         return RETURN_OK;
     }
@@ -553,35 +466,10 @@ int cyield(void)
     PNODE2 exe = malloc(sizeof(PNODE2));
     exe->node = executingThread;
     executingThread->state = PROCST_APTO;
-    switch (executingThread->prio)
-    {
-        case 0:
-        {
-            if (AppendFila2(readyQueue0, exe) != 0)
-                return RETURN_ERROR;
-            break;
-        }
-        case 1:
-        {
-            if (AppendFila2(readyQueue1, exe) != 0)
-                return RETURN_ERROR;
-            break;
-        }
-        case 2:
-        {
-            if (AppendFila2(readyQueue2, exe) != 0)
-                return RETURN_ERROR;
-            break;
-        }
-        default:
-        {
-            printf("PRIORIDADE INVALIDA NO THREAD: %d\n", executingThread->tid);
-            break;
-        }
+    if (AppendFila2(readyQueue0, exe) != 0)
+        return RETURN_ERROR;
+    hasThreadEnded = 0;
 
-    }
-    //hasThreadEnded = 0; não funciona assim com preempção
-    wascyield = TRUE;
     if (swapcontext(&(executingThread->context), &(DispatcherContext)) == -1)
         return RETURN_ERROR;
 
@@ -598,13 +486,9 @@ int csetprio(int tid, int prio)
     TCB_t * thread_tobe_changed;
     thread_tobe_changed = findThread(tid);
 
-    if (thread_tobe_changed != NULL && thread_tobe_changed->state == PROCST_EXEC)
+    if (thread_tobe_changed != NULL)
     {
         thread_tobe_changed->prio = prio;
-        if (shouldPreempt(prio) == TRUE)
-        {
-            cyield();
-        }
         return RETURN_OK;
     }
     else
@@ -614,7 +498,7 @@ int csetprio(int tid, int prio)
 }
 // -----------------------------------------------------------------------------
 
-/*int csuspend(int tid)
+int csuspend(int tid)
 {
 
     if(!has_init)
@@ -689,7 +573,7 @@ int cresume(int tid)
     }
 
     return RETURN_OK;
-}*/
+}
 //-------------------------------------------------------------------------------------
 
 int csem_init (csem_t *sem, int count)
@@ -743,8 +627,7 @@ int cwait (csem_t *sem)
 
         if(AppendFila2(blockedQueue, (void *)node) == 0)
         {
-            //hasThreadEnded = 0;
-            wascwait = TRUE;
+            hasThreadEnded = 0;
             swapcontext(&(thread->context), &(DispatcherContext));
             return RETURN_OK;
         }
@@ -783,15 +666,15 @@ int csignal(csem_t *sem)
 
             if(searchThread(thread->tid, blockedQueue)){
 
-                changeQueue(thread->tid, blockedQueue, readyQueue0, PROCST_APTO); // levar em conta prio
+                changeQueue(thread->tid, blockedQueue, readyQueue0, PROCST_APTO);
                 DeleteAtIteratorFila2(sem->fila);
             }
 
-            /*else if(searchThread(thread->tid, blockedSuspendedQueue)){
+            else if(searchThread(thread->tid, blockedSuspendedQueue)){
 
                 changeQueue(thread->tid, blockedSuspendedQueue, readySuspendedQueue, PROCST_APTO_SUS);
                 DeleteAtIteratorFila2(sem->fila);
-            }*/
+            }
 
             else{
 
@@ -806,7 +689,6 @@ int csignal(csem_t *sem)
 
     return RETURN_OK;
 }
-
 
 
 //-------------------------------------------------------------------------------------
@@ -838,6 +720,14 @@ void printFila(PFILA2 queue)
 }
 
 
+
+void printReadySus()
+{
+    printf("Fila de aptos suspensos: ");
+    printFila(readySuspendedQueue);
+}
+
+
 void printReady()
 {
     printf("Fila de aptos com prioridade 0: ");
@@ -854,9 +744,15 @@ void printBlocked()
     printFila(blockedQueue);
 }
 
+void printBlockedSus()
+{
+    printf("Fila de bloqueados suspensos: ");
+    printFila(blockedSuspendedQueue);
+}
 
 
-int removeFromQueue(int tid, PFILA2 queue)
+
+/*int removeFromQueue(int tid, PFILA2 queue)
 {
     TCB_t *thread;
     PNODE2 current;
@@ -880,4 +776,4 @@ int removeFromQueue(int tid, PFILA2 queue)
 
 
     return RETURN_ERROR;
-}
+}*/
